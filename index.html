@@ -2063,6 +2063,86 @@ function SearchFilter({ onSearch, categories }) {
     </div>
   );
 }
+// ============================================================
+// ASSIGNMENT 1 - HOSPITAL MANAGEMENT SYSTEM
+// ============================================================
+
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/hospital');
+
+const PatientSchema = new mongoose.Schema({
+  name: String, age: Number, gender: String, phone: String, email: String,
+  address: String, medicalHistory: [{ condition: String, date: Date, notes: String }],
+  createdAt: { type: Date, default: Date.now }
+});
+const Patient = mongoose.model('Patient', PatientSchema);
+
+const DoctorSchema = new mongoose.Schema({
+  name: String, specialization: String, phone: String, email: String,
+  schedule: [{ day: String, startTime: String, endTime: String }],
+  available: { type: Boolean, default: true }
+});
+const Doctor = mongoose.model('Doctor', DoctorSchema);
+
+const AppointmentSchema = new mongoose.Schema({
+  patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
+  doctor: { type: mongoose.Schema.Types.ObjectId, ref: 'Doctor' },
+  date: Date, time: String, status: { type: String, default: 'scheduled' },
+  notes: String
+});
+const Appointment = mongoose.model('Appointment', AppointmentSchema);
+
+const BillingSchema = new mongoose.Schema({
+  patient: { type: mongoose.Schema.Types.ObjectId, ref: 'Patient' },
+  appointment: { type: mongoose.Schema.Types.ObjectId, ref: 'Appointment' },
+  amount: Number, description: String, status: { type: String, default: 'pending' },
+  date: { type: Date, default: Date.now }
+});
+const Billing = mongoose.model('Billing', BillingSchema);
+
+// Patient Routes
+app.get('/api/patients', async (req, res) => res.json(await Patient.find()));
+app.get('/api/patients/:id', async (req, res) => res.json(await Patient.findById(req.params.id)));
+app.post('/api/patients', async (req, res) => res.json(await Patient.create(req.body)));
+app.put('/api/patients/:id', async (req, res) => res.json(await Patient.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/patients/:id', async (req, res) => { await Patient.findByIdAndDelete(req.params.id); res.json({ msg: 'Deleted' }); });
+
+// Doctor Routes
+app.get('/api/doctors', async (req, res) => res.json(await Doctor.find()));
+app.post('/api/doctors', async (req, res) => res.json(await Doctor.create(req.body)));
+app.put('/api/doctors/:id', async (req, res) => res.json(await Doctor.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/doctors/:id', async (req, res) => { await Doctor.findByIdAndDelete(req.params.id); res.json({ msg: 'Deleted' }); });
+
+// Appointment Routes
+app.get('/api/appointments', async (req, res) => res.json(await Appointment.find().populate('patient doctor')));
+app.post('/api/appointments', async (req, res) => res.json(await Appointment.create(req.body)));
+app.put('/api/appointments/:id', async (req, res) => res.json(await Appointment.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+app.delete('/api/appointments/:id', async (req, res) => { await Appointment.findByIdAndDelete(req.params.id); res.json({ msg: 'Deleted' }); });
+
+// Billing Routes
+app.get('/api/billing', async (req, res) => res.json(await Billing.find().populate('patient')));
+app.post('/api/billing', async (req, res) => res.json(await Billing.create(req.body)));
+app.put('/api/billing/:id', async (req, res) => res.json(await Billing.findByIdAndUpdate(req.params.id, req.body, { new: true })));
+
+// Medical Records
+app.post('/api/patients/:id/records', async (req, res) => {
+  const patient = await Patient.findById(req.params.id);
+  patient.medicalHistory.push(req.body);
+  await patient.save();
+  res.json(patient);
+});
+
+app.listen(5000, () => console.log('Server running on port 5000'));
 `;
 
 function copyAll(btn) {
